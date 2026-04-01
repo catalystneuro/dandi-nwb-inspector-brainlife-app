@@ -1,0 +1,6 @@
+config.json
+summary.txt
+product.json
+__pycache__/
+*.nwb
+/tmp/

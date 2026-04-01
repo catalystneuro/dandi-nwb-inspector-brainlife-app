@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Brainlife app: Stream an NWB file from DANDI and print its contents."""
+"""Brainlife app: Run NWB Inspector on a DANDI asset."""
 
 import json
 import re
@@ -8,6 +8,7 @@ from pathlib import Path
 import h5py
 import remfile
 from dandi.dandiapi import DandiAPIClient
+from nwbinspector import inspect_nwbfile_object
 from pynwb import NWBHDF5IO
 
 
@@ -24,79 +25,63 @@ def parse_asset_url(url):
     return match.group(1), match.group(2), match.group(3)
 
 
-def safe_attr(obj, name, default=None):
-    """Safely get an attribute, returning default if obj is None or attr missing."""
-    if obj is None:
-        return default
-    return getattr(obj, name, default)
-
-
-def inspect_nwb(nwbfile):
-    """Extract a structured summary from an open NWB file."""
-    subject = nwbfile.subject
-    summary = {
-        "identifier": safe_attr(nwbfile, "identifier"),
-        "session_description": safe_attr(nwbfile, "session_description"),
-        "session_start_time": str(safe_attr(nwbfile, "session_start_time", "")),
-        "subject": {
-            "subject_id": safe_attr(subject, "subject_id"),
-            "species": safe_attr(subject, "species"),
-            "age": safe_attr(subject, "age"),
-            "sex": safe_attr(subject, "sex"),
-        },
-        "acquisition": list(nwbfile.acquisition.keys()),
-        "processing_modules": list(nwbfile.processing.keys()),
-        "devices": list(nwbfile.devices.keys()),
-        "electrode_groups": list(nwbfile.electrode_groups.keys()),
-        "electrodes_columns": (
-            list(nwbfile.electrodes.colnames) if nwbfile.electrodes is not None else []
-        ),
-        "units_columns": (
-            list(nwbfile.units.colnames) if nwbfile.units is not None else []
-        ),
-        "intervals": {
-            name: len(table) for name, table in nwbfile.intervals.items()
-        } if nwbfile.intervals else {},
+def format_message(msg):
+    """Format a single InspectorMessage into a readable dict."""
+    return {
+        "importance": msg.importance.name,
+        "check": msg.check_function_name,
+        "object_type": msg.object_type,
+        "object_name": msg.object_name,
+        "location": msg.location,
+        "message": msg.message,
     }
-    return summary
 
 
-def format_summary(dandiset_id, version, asset_id, asset_path, summary):
-    """Format the summary dict into a human-readable string."""
+def format_report(dandiset_id, version, asset_id, asset_path, messages):
+    """Format inspection results into a human-readable string."""
     lines = [
         "=" * 60,
-        "DANDI NWB Inspector — Summary",
+        "NWB Inspector Report",
         "=" * 60,
         "",
-        f"Dandiset:            {dandiset_id}",
-        f"Version:             {version}",
-        f"Asset ID:            {asset_id}",
-        f"Asset path:          {asset_path}",
+        f"Dandiset:    {dandiset_id}",
+        f"Version:     {version}",
+        f"Asset ID:    {asset_id}",
+        f"Asset path:  {asset_path}",
         "",
-        f"Identifier:          {summary['identifier']}",
-        f"Session description: {summary['session_description']}",
-        f"Session start time:  {summary['session_start_time']}",
-        "",
-        "--- Subject ---",
-        f"  ID:      {summary['subject']['subject_id']}",
-        f"  Species: {summary['subject']['species']}",
-        f"  Age:     {summary['subject']['age']}",
-        f"  Sex:     {summary['subject']['sex']}",
-        "",
-        f"Acquisition keys:    {summary['acquisition']}",
-        f"Processing modules:  {summary['processing_modules']}",
-        f"Devices:             {summary['devices']}",
-        f"Electrode groups:    {summary['electrode_groups']}",
-        f"Electrodes columns:  {summary['electrodes_columns']}",
-        f"Units columns:       {summary['units_columns']}",
     ]
 
-    if summary["intervals"]:
-        lines.append(f"Intervals:")
-        for name, count in summary["intervals"].items():
-            lines.append(f"  {name}: {count} rows")
+    if not messages:
+        lines.append("No issues found.")
+        return "\n".join(lines)
 
-    lines.append("")
+    # Group by importance
+    by_importance = {}
+    for msg in messages:
+        key = msg["importance"]
+        by_importance.setdefault(key, []).append(msg)
+
+    # Display order
+    order = ["CRITICAL", "BEST_PRACTICE_VIOLATION", "BEST_PRACTICE_SUGGESTION", "ERROR"]
+    for importance in order:
+        group = by_importance.get(importance, [])
+        if not group:
+            continue
+        lines.append(f"--- {importance} ({len(group)}) ---")
+        for msg in group:
+            location = msg["location"] or ""
+            obj = msg["object_name"] or ""
+            prefix = f"  [{msg['check']}]"
+            if obj:
+                prefix += f" {obj}"
+            if location:
+                prefix += f" @ {location}"
+            lines.append(prefix)
+            lines.append(f"    {msg['message']}")
+        lines.append("")
+
+    total = len(messages)
+    lines.append(f"Total issues: {total}")
     return "\n".join(lines)
 
 
@@ -120,38 +105,87 @@ def main():
     print(f"Asset path: {asset_path}")
     print(f"Streaming NWB from: {s3_url}")
 
-    # Stream-read NWB file (no full download)
+    # Stream-read NWB file and run inspector
     rem_file = remfile.File(s3_url)
     with h5py.File(rem_file, "r") as h5_file:
         with NWBHDF5IO(file=h5_file, load_namespaces=True) as io:
             nwbfile = io.read()
-            summary = inspect_nwb(nwbfile)
+            print("Running NWB Inspector...")
+            raw_messages = list(inspect_nwbfile_object(nwbfile))
 
-    # Format and print
-    text = format_summary(dandiset_id, version, asset_id, asset_path, summary)
-    print(text)
+    messages = [format_message(msg) for msg in raw_messages]
+
+    # Format and print report
+    report = format_report(dandiset_id, version, asset_id, asset_path, messages)
+    print(report)
 
     # Write Brainlife raw output
     outdir = Path("output")
     outdir.mkdir(exist_ok=True)
-    (outdir / "summary.txt").write_text(text)
+    (outdir / "report.txt").write_text(report)
+    (outdir / "report.json").write_text(json.dumps(messages, indent=2))
 
-    # Write product.json for Brainlife UI (must be in cwd, not output dir)
+    # Count issues by importance for product.json summary
+    counts = {}
+    for msg in messages:
+        counts[msg["importance"]] = counts.get(msg["importance"], 0) + 1
+
+    # Build Plotly bar chart of issues by importance
+    importance_order = ["CRITICAL", "BEST_PRACTICE_VIOLATION", "BEST_PRACTICE_SUGGESTION"]
+    importance_colors = {
+        "CRITICAL": "#e74c3c",
+        "BEST_PRACTICE_VIOLATION": "#e67e22",
+        "BEST_PRACTICE_SUGGESTION": "#f1c40f",
+    }
+    chart_labels = [level for level in importance_order if counts.get(level, 0) > 0]
+    chart_values = [counts[level] for level in chart_labels]
+    chart_colors = [importance_colors[level] for level in chart_labels]
+
+    plotly_chart = {
+        "type": "plotly",
+        "name": "Issues by Importance",
+        "data": {
+            "data": [
+                {
+                    "type": "bar",
+                    "x": chart_values,
+                    "y": chart_labels,
+                    "orientation": "h",
+                    "marker": {"color": chart_colors},
+                }
+            ],
+            "layout": {
+                "title": "NWB Inspector Issues by Importance",
+                "xaxis": {"title": "Number of Issues"},
+                "yaxis": {"autorange": "reversed"},
+                "margin": {"l": 220},
+            },
+        },
+    }
+
+    # Write product.json for Brainlife UI
     product = {
         "brainlife": {
             "ui": [
                 {
                     "type": "text",
-                    "name": "NWB Summary",
-                    "value": text,
-                }
+                    "name": "NWB Inspector Report",
+                    "value": report,
+                },
+                plotly_chart,
             ]
         },
-        **summary,
+        "dandiset_id": dandiset_id,
+        "version": version,
+        "asset_id": asset_id,
+        "asset_path": asset_path,
+        "total_issues": len(messages),
+        "counts": counts,
+        "messages": messages,
     }
     Path("product.json").write_text(json.dumps(product, indent=2, default=str))
 
-    print("\nDone. Output written to output/summary.txt and product.json")
+    print(f"\nDone. Output written to output/ and product.json")
 
 
 if __name__ == "__main__":

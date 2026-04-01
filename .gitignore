@@ -4,3 +4,4 @@ product.json
 __pycache__/
 *.nwb
 /tmp/
+output**

@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-python3 app.py
+
+if command -v singularity &> /dev/null; then
+    singularity exec docker://ghcr.io/catalystneuro/dandi-nwb-inspector-brainlife-app:latest python3 app.py
+else
+    python3 app.py
+fi

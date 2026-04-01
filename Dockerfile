@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Required for Singularity compatibility on Brainlife HPC resources
+RUN ldconfig

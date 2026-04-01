@@ -141,40 +141,35 @@ def main():
     chart_values = [counts[level] for level in chart_labels]
     chart_colors = [importance_colors[level] for level in chart_labels]
 
-    plotly_chart = {
-        "type": "plotly",
-        "name": "Issues by Importance",
-        "data": {
-            "data": [
-                {
-                    "type": "bar",
-                    "x": chart_values,
-                    "y": chart_labels,
-                    "orientation": "h",
-                    "marker": {"color": chart_colors},
-                }
-            ],
-            "layout": {
-                "title": "NWB Inspector Issues by Importance",
-                "xaxis": {"title": "Number of Issues"},
-                "yaxis": {"autorange": "reversed"},
-                "margin": {"l": 220},
-            },
-        },
-    }
-
     # Write product.json for Brainlife UI
+    # Note: brainlife expects "brainlife" to be an array of UI elements
     product = {
-        "brainlife": {
-            "ui": [
-                {
-                    "type": "text",
-                    "name": "NWB Inspector Report",
-                    "value": report,
+        "brainlife": [
+            {
+                "type": "text",
+                "name": "NWB Inspector Report",
+                "value": report,
+            },
+            {
+                "type": "plotly",
+                "name": "Issues by Importance",
+                "data": [
+                    {
+                        "type": "bar",
+                        "x": chart_values,
+                        "y": chart_labels,
+                        "orientation": "h",
+                        "marker": {"color": chart_colors},
+                    }
+                ],
+                "layout": {
+                    "title": "NWB Inspector Issues by Importance",
+                    "xaxis": {"title": "Number of Issues"},
+                    "yaxis": {"autorange": "reversed"},
+                    "margin": {"l": 220},
                 },
-                plotly_chart,
-            ]
-        },
+            },
+        ],
         "dandiset_id": dandiset_id,
         "version": version,
         "asset_id": asset_id,

@@ -132,9 +132,11 @@ def main():
     print(text)
 
     # Write Brainlife raw output
-    Path("summary.txt").write_text(text)
+    outdir = Path("output")
+    outdir.mkdir(exist_ok=True)
+    (outdir / "summary.txt").write_text(text)
 
-    # Write product.json for Brainlife UI
+    # Write product.json for Brainlife UI (must be in cwd, not output dir)
     product = {
         "brainlife": {
             "ui": [
@@ -149,7 +151,7 @@ def main():
     }
     Path("product.json").write_text(json.dumps(product, indent=2, default=str))
 
-    print("\nDone. Output written to summary.txt and product.json")
+    print("\nDone. Output written to output/summary.txt and product.json")
 
 
 if __name__ == "__main__":

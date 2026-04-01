@@ -2,12 +2,26 @@
 """Brainlife app: Stream an NWB file from DANDI and print its contents."""
 
 import json
+import re
 from pathlib import Path
 
 import h5py
 import remfile
 from dandi.dandiapi import DandiAPIClient
 from pynwb import NWBHDF5IO
+
+
+def parse_asset_url(url):
+    """Parse a DANDI asset API URL into dandiset_id, version, and asset_id.
+
+    Accepts URLs like:
+      https://api.dandiarchive.org/api/dandisets/000950/versions/0.241029.1403/assets/e114bc42-dcb5-4c02-b663-545b49d04664/
+    """
+    pattern = r"dandisets/(\d+)/versions/([^/]+)/assets/([^/]+)"
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError(f"Could not parse DANDI asset URL: {url}")
+    return match.group(1), match.group(2), match.group(3)
 
 
 def safe_attr(obj, name, default=None):
@@ -47,7 +61,7 @@ def inspect_nwb(nwbfile):
     return summary
 
 
-def format_summary(dandiset_id, version, asset_path, summary):
+def format_summary(dandiset_id, version, asset_id, asset_path, summary):
     """Format the summary dict into a human-readable string."""
     lines = [
         "=" * 60,
@@ -56,6 +70,7 @@ def format_summary(dandiset_id, version, asset_path, summary):
         "",
         f"Dandiset:            {dandiset_id}",
         f"Version:             {version}",
+        f"Asset ID:            {asset_id}",
         f"Asset path:          {asset_path}",
         "",
         f"Identifier:          {summary['identifier']}",
@@ -90,18 +105,19 @@ def main():
     with open("config.json") as f:
         cfg = json.load(f)
 
-    dandiset_id = cfg["dandiset_id"]
-    version = cfg.get("version", "draft")
-    asset_path = cfg["asset_path"]
+    asset_url = cfg["asset_url"]
+    dandiset_id, version, asset_id = parse_asset_url(asset_url)
 
-    print(f"Fetching asset from DANDI: {dandiset_id}/{version}/{asset_path}")
+    print(f"Fetching asset from DANDI: {dandiset_id}/{version}/{asset_id}")
 
     # Get S3 URL from DANDI (no auth needed for public data)
     with DandiAPIClient() as client:
         dandiset = client.get_dandiset(dandiset_id, version)
-        asset = dandiset.get_asset_by_path(asset_path)
+        asset = dandiset.get_asset(asset_id)
+        asset_path = asset.path
         s3_url = asset.get_content_url(follow_redirects=1, strip_query=True)
 
+    print(f"Asset path: {asset_path}")
     print(f"Streaming NWB from: {s3_url}")
 
     # Stream-read NWB file (no full download)
@@ -112,7 +128,7 @@ def main():
             summary = inspect_nwb(nwbfile)
 
     # Format and print
-    text = format_summary(dandiset_id, version, asset_path, summary)
+    text = format_summary(dandiset_id, version, asset_id, asset_path, summary)
     print(text)
 
     # Write Brainlife raw output

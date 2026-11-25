@@ -1,5 +1,34 @@
 # DANDI NWB Inspector — Brainlife App
 
+<!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
+
+> **Checks a public NWB file on the DANDI Archive against NWB best practices with NWB Inspector, streaming it without a full download, and outputs text and JSON reports.**
+
+Parses the dandiset ID, version and asset ID from a DANDI asset API URL, resolves its S3 location with the DANDI API, streams the file with remfile and runs nwbinspector on it. Use it to validate NWB files before or after publishing on DANDI. It takes no input dataset, only the asset_url parameter, and needs internet access.
+
+| | |
+|---|---|
+| 📤 **Outputs** | `raw` |
+| 🐳 **Container** | `ghcr.io/catalystneuro/dandi-nwb-inspector-brainlife-app:latest` |
+| 🔗 **Run it** | [doi.org/10.25663/brainlife.app.918](https://doi.org/10.25663/brainlife.app.918) |
+
+#### 📤 Outputs
+
+| Output | Datatype | Description |
+|---|---|---|
+| `output` | `raw` | NWB Inspector results as report.txt (human-readable, grouped by importance) and report.json. |
+
+<details>
+<summary><b>⚙️ Parameters</b> (1)</summary>
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `asset_url` | string |  | Full DANDI asset API URL, e.g. https://api.dandiarchive.org/api/dandisets/<id>/versions/<version>/assets/<asset_id>/. |
+
+</details>
+
+<!-- brainlife-app:end -->
+
 A Brainlife app that runs [NWB Inspector](https://github.com/NeurodataWithoutBorders/nwbinspector) on a public NWB file from the DANDI archive. The file is streamed directly from DANDI — no full download required.
 
 ## How it works

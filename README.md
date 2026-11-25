@@ -1,4 +1,15 @@
-# DANDI NWB Inspector — Brainlife App
+<h1 align="center">DANDI NWB Inspector</h1>
+
+<p align="center">
+  Checks a public NWB file on the DANDI Archive against NWB best practices with NWB Inspector, streaming it without a full download, and outputs text and JSON reports.
+</p>
+
+<p align="center">
+  <a href="https://github.com/brainlife/abcd-spec"><img src="https://img.shields.io/badge/ABCD_Spec-v1.1-green.svg" alt="ABCD Spec v1.1"></a>
+  <a href="https://doi.org/10.25663/brainlife.app.918"><img src="https://img.shields.io/badge/Brainlife-brainlife.app.918-blue.svg" alt="Run on brainlife.io"></a>
+</p>
+
+## At a glance
 
 <!-- brainlife-app:begin (generated from the App manifest; edit the manifest, not this block) -->
 
@@ -8,18 +19,18 @@ Parses the dandiset ID, version and asset ID from a DANDI asset API URL, resolve
 
 | | |
 |---|---|
-| 📤 **Outputs** | `raw` |
-| 🐳 **Container** | `ghcr.io/catalystneuro/dandi-nwb-inspector-brainlife-app:latest` |
-| 🔗 **Run it** | [doi.org/10.25663/brainlife.app.918](https://doi.org/10.25663/brainlife.app.918) |
+| **Outputs** | `raw` |
+| **Container** | `ghcr.io/catalystneuro/dandi-nwb-inspector-brainlife-app:latest` |
+| **Run it** | [doi.org/10.25663/brainlife.app.918](https://doi.org/10.25663/brainlife.app.918) |
 
-#### 📤 Outputs
+#### Outputs
 
 | Output | Datatype | Description |
 |---|---|---|
 | `output` | `raw` | NWB Inspector results as report.txt (human-readable, grouped by importance) and report.json. |
 
 <details>
-<summary><b>⚙️ Parameters</b> (1)</summary>
+<summary><b>Parameters</b> (1)</summary>
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -29,7 +40,30 @@ Parses the dandiset ID, version and asset ID from a DANDI asset API URL, resolve
 
 <!-- brainlife-app:end -->
 
-A Brainlife app that runs [NWB Inspector](https://github.com/NeurodataWithoutBorders/nwbinspector) on a public NWB file from the DANDI archive. The file is streamed directly from DANDI — no full download required.
+## Running the App
+
+### On brainlife.io
+
+Open the App at [doi.org/10.25663/brainlife.app.918](https://doi.org/10.25663/brainlife.app.918), choose the input datasets from your project, set the parameters and press **Execute**. The results are saved to your project as `raw`.
+
+### Locally
+
+You need [Singularity/Apptainer](https://apptainer.org/) (the App runs in `ghcr.io/catalystneuro/dandi-nwb-inspector-brainlife-app:latest`), [`jq`](https://jqlang.github.io/jq/).
+
+1. Clone this repository.
+2. Create `config.json` with the paths to your inputs and the parameters:
+
+   ```json
+   {
+       "asset_url": ""
+   }
+   ```
+
+3. Run `./main`.
+
+## Troubleshooting
+
+- **Could not parse DANDI asset URL**: Use the full DANDI asset API URL.
 
 ## How it works
 
@@ -57,8 +91,14 @@ Edit `config.json` to point to any public DANDI asset URL, e.g.:
 }
 ```
 
-## Brainlife registration
+## Citing
 
-- **Input datatypes**: none (config-parameter driven)
-- **Config params**: `asset_url` (string) — full DANDI asset API URL
-- **Output**: `raw` datatype, output directory: `output`
+If you use this App, please cite it, the software it builds on and brainlife.io:
+
+- DANDI NWB Inspector. brainlife.io App. [doi:10.25663/brainlife.app.918](https://doi.org/10.25663/brainlife.app.918)
+- Hayashi S, Caron BA, Heinsfeld AS, et al. brainlife.io: a decentralized and open-source cloud platform to support neuroscience research. *Nature Methods* 21:809–813 (2024). [doi:10.1038/s41592-024-02237-2](https://doi.org/10.1038/s41592-024-02237-2)
+- Avesani P, McPherson B, Hayashi S, et al. The open diffusion data derivatives, brain data upcycling via integrated publishing of derivatives and reproducible open cloud services. *Scientific Data* 6:69 (2019). [doi:10.1038/s41597-019-0073-y](https://doi.org/10.1038/s41597-019-0073-y)
+
+## Authors
+
+Maintained by [@catalystneuro](https://github.com/catalystneuro).
